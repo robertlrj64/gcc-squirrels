@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Myst Style Navigation</title>
+
+<style>
+body {
+    margin: 0;
+    overflow: hidden;
+}
+
+/* Scene */
+#scene {
+    width: 100vw;
+    height: 100vh;
+    background-size: cover;
+    background-position: center;
+}
+
+/* Black fade overlay */
+#fade {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background: black;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 999999; /* <- MUST be higher than overlay + scene */
+    transition: opacity 1s ease;
+}
+
+/* UI Overlay */
+#overlay {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background: rgba(0,0,0,0.55);
+    color: white;
+    padding: 20px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    font-family: sans-serif;
+    z-index: 9500;
+}
+
+/* Squirrel image */
+#squirrelImage {
+    width: 100px;
+    height: auto;
+	border: 1px;
+}
+
+/* Title + description */
+#overlayText {
+    display: flex;
+    flex-direction: column;
+}
+#overlayTitle {
+    font-size: 28px;
+    font-weight: bold;
+}
+#overlayDesc {
+    font-size: 16px;
+    margin-top: 6px;
+    max-width: 600px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="scene"></div>
+
+<!-- UI Overlay -->
+<div id="overlay">
+    <img id="squirrelImage" src="" alt="Guide">
+    <div id="overlayText">
+        <div id="overlayTitle"></div>
+        <div id="overlayDesc"></div>
+    </div>
+</div>
+<div id="fade"></div>
+
+<script>
+// ===== CUSTOM CURSORS =====
+const leftCursor  = "url('left.png') 16 16, auto";
+const rightCursor = "url('right.png') 16 16, auto";
+const upCursor    = "url('up.png') 16 16, auto";
+const downCursor  = "url('down.png') 16 16, auto";   // <<< NEW BACK CURSOR
+
+// ===== SCENE DATA =====
+const scenes = {
+    crawford: {
+        image: "scene (11).jpg",
+        left: "crawford2",
+        right: "crawford12",
+        forward: null,
+        back: null,
+        title: "Crawford Hall",
+		description: "This is Crawford Hall. It’s home to an auditorium and several administrative offices. People are always heading inside for meetings, performances, or campus events. I like to sit under that tree and listen to the echoes when the doors open.",
+        squirrel: "squirrel1.png"
+    },
+	
+	crawford12: {
+        image: "scene (13).jpg",
+        left: null,
+        right: null,
+        forward: "crawford1",
+        back: "crawford",
+        title: "Crawford Hall",
+		description: "This view faces the side of Crawford near the auditorium wing. Students and guests line up here before concerts, talks, or big events. I usually watch from the edge of the walkway so I don’t get stepped on.",
+        squirrel: "squirrel1.png"
+    },
+	
+	crawford1: {
+        image: "scene (14).jpg",
+        left: null,
+        right: null,
+        forward: "ketrec",
+        back: "crawford12",
+        title: "Crawford Hall",
+		description: "This view also faces the side of Crawford near the auditorium wing. You can also see the campus safety cars that the officers use help keep the students safe.",
+		squirrel: "squirrel1.png"
+    },
+	
+	crawford2: {
+        image: "scene (32).jpg",
+        left: "crawford3",
+        right: "crawford",
+        forward: null,
+        back: null,
+        title: "Crawford Hall",
+		description: "A closer look at Crawford’s front entrance. Visitors often come through here for appointments or to attend programs in the auditorium. From this spot, I can hear muffled speeches and music drifting out now and then.",
+        squirrel: "squirrel1.png"
+    },
+	
+	crawford3: {
+        image: "scene (33).jpg",
+        left: "qpath1",
+        right: "crawford2",
+        forward: null,
+        back: null,
+        title: "Crawford Hall",
+        description: "This is the map outside of Crawford. I often see new students gathered around trying their best to find out where to go.",
+        squirrel: "squirrel1.png"
+    },
+	
+	qpath1: {
+        image: "scene (34).jpg",
+        left: null,
+        right: null,
+        forward: "qpath2",
+        back: "crawford3",
+        title: "The Quad Path",
+        description: "This stretch of the Quad Path is always lively between classes. Students hurry past here on their way to the heart of campus — it’s a great viewing spot if you enjoy watching the busy rush.",
+        squirrel: "squirrel1.png"
+    },
+	
+	qpath2: {
+        image: "scene (35).jpg",
+        left: "qpath1",
+        right: "harbi1",
+        forward: null,
+        back: null,
+        title: "The Quad Path",
+        description: "This side of the Quad Path leads toward Harbison Chapel. It’s quieter in the early morning, but once classes begin, waves of students sweep through here.",
+        squirrel: "squirrel1.png"
+    },
+	
+	harbi1: {
+        image: "scene (39).jpg",
+        left: null,
+        right: "tquad",
+        forward: null,
+        back: "qpath2",
+        title: "Harbison Chapel",
+        description: "This is Harbison Chapel — the spiritual center of campus. Students come here for chapel services, weddings, concerts, and quiet moments. The bells ring often, and though they make me jump, they sound lovely.",
+        squirrel: "squirrel1.png"
+    },
+	
+	tquad: {
+        image: "scene (40).jpg",
+        left: "mapwalk",
+        right: null,
+        forward: null,
+        back: "harbi1",
+        title: "The Quad",
+        description: "This is the Quad, the wide green space right in the middle of campus. Students relax here, toss frisbees, or run between buildings when they’re late for class.",
+        squirrel: "squirrel1.png"
+    },
+	
+	mapwalk: {
+        image: "scene (41).jpg",
+        left: null,
+        right: "qwalk1",
+        forward: null,
+        back: "tquad",
+        title: "MAP Women's Dormitory",
+        description: "This walkway passes by MAP, one of the women’s residence halls. It’s a calm route that leads toward the Quad and several academic buildings.",
+        squirrel: "squirrel1.png"
+    },
+	
+	qwalk1: {
+        image: "scene (42).jpg",
+        left: null,
+        right: "qwalk2",
+        forward: null,
+        back: "mapwalk",
+        title: "The Quad Path & Smith Hall",
+        description: "This path sits near Smith Hall. Students move through here steadily throughout the day, especially during class changes.",
+        squirrel: "squirrel1.png"
+    },
+	
+	qwalk2: {
+        image: "scene (43).jpg",
+        left: null,
+        right: null,
+        forward: "ketler1",
+        back: "qwalk1",
+        title: "The Quad Path & Ketler Hall",
+        description: "This section of the Quad Path leads toward Ketler Hall. It’s a nice shaded area where students pass by on the way to the residence halls.",
+        squirrel: "squirrel1.png"
+    },
+	
+	ketler1: {
+        image: "scene (45).jpg",
+        left: "smith1",
+        right: null,
+        forward: null,
+        back: "qwalk2",
+        title: "Ketler Hall",
+        description: "Ketler Hall is one of the men’s residence halls. Students describe it as friendly and full of energy. From here, paths branch toward Smith, STEM Hall, and the Quad.",
+        squirrel: "squirrel1.png"
+    },
+	
+	smith1: {
+        image: "scene (47).jpg",
+        left: null,
+        right: "smith2",
+        forward: null,
+        back: "ketler1",
+        title: "Smith Hall",
+        description: "Smith Hall is an academic building where students attend classes in a variety of subjects. The front walkway is always busy between lecture times.",
+        squirrel: "squirrel1.png"
+    },
+	
+	smith2: {
+        image: "scene (48).jpg",
+        left: null,
+        right: null,
+        forward: "smith3",
+        back: "smith1",
+        title: "Smith Hall & STEM Hall",
+        description: "This is the path between Smith Hall and STEM Hall. Science and engineering students walk through here carrying textbooks, lab notebooks, and occasionally odd equipment.",
+        squirrel: "squirrel1.png"
+    },
+	
+	smith3: {
+        image: "scene (50).jpg",
+        left: null,
+        right: null,
+        forward: "smithpath",
+        back: "smith2",
+        title: "STEM Hall",
+        description: "STEM Hall is filled with labs, classrooms, and research spaces. The building glows at night when students stay late finishing projects.",
+        squirrel: "squirrel1.png"
+    },
+	
+	smithpath: {
+        image: "scene (51).jpg",
+        left: null,
+        right: null,
+        forward: "hoytpath1",
+        back: "smith3",
+        title: "Smith & SAC Intersection",
+        description: "This intersection connects Smith Hall to the SAC area. Students cross paths here constantly — it’s one of the busiest parts of campus.",
+        squirrel: "squirrel1.png"
+    },
+	
+	hoytpath1: {
+        image: "scene (52).jpg",
+        left: null,
+        right: null,
+        forward: "hoytpath2",
+        back: "smithpath",
+        title: "Hoyt Hall & SAC Path",
+        description: "This path sits between Hoyt Hall and the SAC. Most students take this route when moving from labs to the arts buildings.",
+        squirrel: "squirrel1.png"
+    },
+	
+	hoytpath2: {
+        image: "scene (53).jpg",
+        left: null,
+        right: null,
+        forward: "hoytpath3",
+        back: "hoytpath1",
+        title: "Hoyt Hall & SAC Path",
+        description: "Another quiet part of the Hoyt–SAC path. It fills with activity every hour as classes switch.",
+        squirrel: "squirrel1.png"
+    },
+	
+	hoytpath3: {
+        image: "scene (55).jpg",
+        left: null,
+        right: "hal1",
+        forward: null,
+        back: "hoytpath2",
+        title: "SAC Path",
+        description: "This path curves toward the SHAL courtyard. It gets especially busy in the afternoon when students finish classes for the day.",
+        squirrel: "squirrel1.png"
+    },
+	
+	hal1: {
+        image: "scene (56).jpg",
+        left: "hal2",
+        right: "shal1",
+        forward: null,
+        back: "hoytpath3",
+        title: "SHAL Courtyard",
+        description: "This is HAL — or SHAL, as Thornball insists on calling it. It's usually lively until mid-afternoon. Students here talk about theology, writing, history, and all sorts of topics.",
+        squirrel: "squirrel1.png"
+    },
+	
+	hal2: {
+        image: "scene (57).jpg",
+        left: null,
+        right: null,
+        forward: "hal3",
+        back: "hal1",
+        title: "SHAL Courtyard",
+        description: "Another view of HAL's courtyard. Students gather here before heading into classes about literature, language, and the humanities.",
+        squirrel: "squirrel1.png"
+    },
+	
+	hal3: {
+        image: "scene (60).jpg",
+        left: "plc1",
+        right: null,
+        forward: null,
+        back: "hal2",
+        title: "The PLC",
+        description: "This walkway leads toward the Physical Learning Center. Students pass through here on their way to gym classes, workouts, or intramural practices.",
+        squirrel: "squirrel1.png"
+    },
+	
+	plc1: {
+        image: "scene (61).jpg",
+        left: null,
+        right: null,
+        forward: "plc2",
+        back: "hal3",
+        title: "The SAC Courtyard",
+        description: "This courtyard sits between the SAC and the PLC. It’s a common spot to meet up before heading to activities or the rec center.",
+        squirrel: "squirrel1.png"
+    },
+	
+	plc2: {
+        image: "scene (62).jpg",
+        left: null,
+        right: null,
+        forward: "plc3",
+        back: "plc1",
+        title: "The SAC Courtyard",
+        description: "Another part of the SAC courtyard. Students often cross here carrying gear for sports, labs, or the arts.",
+        squirrel: "squirrel1.png"
+    },
+	
+	plc3: {
+        image: "scene (1).jpg",
+        left: null,
+        right: null,
+        forward: "stem1",
+        back: "plc2",
+        title: "The PLC",
+        description: "The path beside the PLC is always busy with students heading in for workouts, classes, or campus events.",
+        squirrel: "squirrel1.png"
+    },
+	
+	stem1: {
+        image: "scene (4).jpg",
+        left: null,
+        right: "harker1",
+        forward: null,
+        back: "plc3",
+        title: "STEM Hall",
+        description: "You're near STEM Hall again. Students in lab coats or with backpacks full of textbooks pass through here constantly.",
+        squirrel: "squirrel1.png"
+    },
+	
+	harker1: {
+        image: "scene (5).jpg",
+        left: null,
+        right: "plc4",
+        forward: null,
+        back: "plc3",
+        title: "Harker Women's Dormitory",
+        description: "This is Harker Hall, a women’s residence hall with a strong sense of community. It’s calm most of the day, except during move-in week when everything becomes wonderfully chaotic.",
+        squirrel: "squirrel1.png"
+    },
+	
+	plc4: {
+        image: "scene (7).jpg",
+        left: null,
+        right: null,
+        forward: null,
+        back: "harker1",
+        title: "The PLC",
+        description: "Another walkway near the PLC. Students use this route to reach athletic areas or loop back toward the Quad.",
+        squirrel: "squirrel1.png"
+    },
+
+    stem: {
+        image: "scene (18).jpg",
+        left: "quad",
+        right: "library",
+        forward: null,
+        back: "ketrec",
+        title: "STEM Hall",
+        description: "This side of STEM Hall is connected to several main walkways. Students heading to the Quad or the library often pass through here.",
+        squirrel: "squirrel1.png"
+    },
+
+    ketrec: {
+        image: "scene (15).jpg",
+        left: null,
+        right: null,
+        forward: "stem",
+        back: "crawford1",
+        title: "Ketler Hall",
+        description: "This is Ket-Rec. Thornball says it’s officially called ‘Ketler Men’s Dormitory and Recreational Basement,’ but that seems a bit long for a squirrel to say.",
+        squirrel: "squirrel1.png"
+    },
+	
+	library: {
+        image: "scene (19).jpg",
+        left: null,
+        right: null,
+        forward: "library2",
+        back: "stem",
+        title: "Henry Buhl Library",
+        description: "This is the Henry Buhl Library. There’s a café inside, and students often sit outside to study or chat. It’s a peaceful place — most of the time.",
+        squirrel: "squirrel1.png"
+    },
+	
+	library2: {
+		image: "scene (22).jpg",
+		left: "shal1",
+		right: "library",
+		forward: null,
+		back: null,
+		title: "HBL Patio",
+		description: "This is the library patio where students enjoy coffee from the café. It’s a sunny spot and one of the calmer corners of campus.",
+		squirrel: "squirrel1.png"
+    },
+	
+	shal1: {
+		image: "scene (23).jpg",
+		left: "hal1",
+		right: null,
+		forward: "shal2",
+		back: "library2",
+		title: "Staley Hall of Arts and Letters",
+		description: "This is HAL, though Thornball stubbornly calls it SHAL. Students come here for classes in theology, writing, languages, and the arts.",
+		squirrel: "squirrel1.png"
+    },
+	
+	shal2: {
+		image: "scene (24).jpg",
+		left: null,
+		right: "pew1",
+		forward: null,
+		back: "shal1",
+		title: "Staley Hall of Arts and Letters",
+		description: "Another side of HAL, where students head into classrooms full of books, papers, and lively discussions.",
+		squirrel: "squirrel1.png"
+    },
+
+	pew1: {
+		image: "scene (25).jpg",
+		left: null,
+		right: "pew2",
+		forward: null,
+		back: "shal2",
+		title: "PEW Fine Arts",
+		description: "This is the Pew Fine Arts Center, home to music, theater, and visual arts. Sometimes you can hear warm-ups or rehearsals echoing from inside.",
+		squirrel: "squirrel1.png"
+    },
+	
+	pew2: {
+		image: "scene (26).jpg",
+		left: null,
+		right: null,
+		forward: "pew3",
+		back: "pew1",
+		title: "PEW Fine Arts",
+		description: "Another view of Pew Fine Arts. Students carrying instruments, art supplies, or giant portfolios come through here often.",
+		squirrel: "squirrel1.png"
+    },
+	
+	pew3: {
+		image: "scene (27).jpg",
+		left: null,
+		right: null,
+		forward: "pew4",
+		back: "pew2",
+		title: "PEW Fine Arts",
+		description: "This path runs alongside the arts center. If the weather’s nice, you’ll sometimes hear students practicing outside.",
+		squirrel: "squirrel1.png"
+    },
+	
+	pew4: {
+		image: "scene (28).jpg",
+		left: "pew3",
+		right: "hicks1",
+		forward: null,
+		back: null,
+		title: "PEW Fine Arts",
+		description: "This walkway leads from Pew toward Hicks. It’s a quiet, shaded place between two busy parts of campus.",
+		squirrel: "squirrel1.png"
+    },
+	
+	hicks1: {
+		image: "scene (29).jpg",
+		left: "hicks2",
+		right: "pew4",
+		forward: null,
+		back: null,
+		title: "Hicks Dormitory",
+		description: "This is Hicks Hall, a men’s residence hall known for its lively community. It sits close to the dining hall and the Quad paths.",
+		squirrel: "squirrel1.png"
+    },
+	
+	hicks2: {
+		image: "scene (30).jpg",
+		left: null,
+		right: "hicks1",
+		forward: null,
+		back: null,
+		title: "Hicks Dining Hall",
+		description: "This is Hicks Dining Hall, where students eat meals and gather between classes. It’s one of the busiest spots on campus during lunch hours.",
+		squirrel: "squirrel1.png"
+    }
+};
+
+let currentScene = "crawford";
+
+const sceneDiv = document.getElementById("scene");
+const fadeDiv = document.getElementById("fade");
+
+const sqImg = document.getElementById("squirrelImage");
+const titleBox = document.getElementById("overlayTitle");
+const descBox = document.getElementById("overlayDesc");
+let typewriterTimeouts = [];
+let typing = false;
+
+function typeText(element, text, speed = 25) {
+    // Stop any existing typing
+    typewriterTimeouts.forEach(t => clearTimeout(t));
+    typewriterTimeouts = [];
+
+    element.textContent = "";
+    typing = true;
+
+    [...text].forEach((char, i) => {
+        const timeout = setTimeout(() => {
+            element.textContent += char;
+            if (i === text.length - 1) typing = false;
+        }, i * speed);
+        typewriterTimeouts.push(timeout);
+    });
+}
+
+// Clicking the box instantly finishes the text
+descBox.addEventListener("click", () => {
+    if (typing) {
+        typewriterTimeouts.forEach(t => clearTimeout(t));
+        descBox.textContent = scenes[currentScene].description;
+        typing = false;
+    }
+});
+
+// ===== UPDATE OVERLAY =====
+function updateOverlay(sceneObj) {
+    sqImg.src = sceneObj.squirrel ?? "";
+    titleBox.textContent = sceneObj.title ?? "";
+
+    // Typewriter effect for description
+    typeText(descBox, sceneObj.description ?? "", 22);
+}
+
+// ===== LOAD SCENE =====
+function loadScene(name) {
+    // Force reflow to allow transition to apply
+    fadeDiv.style.transition = "none";
+    fadeDiv.style.opacity = "0";
+    fadeDiv.getBoundingClientRect();  // <- forces reflow
+
+    // Now turn transition back on and fade to black
+    fadeDiv.style.transition = "opacity 0.5s ease";
+    fadeDiv.style.opacity = "1";
+
+    // After fade out completes, swap scene
+    setTimeout(() => {
+        currentScene = name;
+        const s = scenes[name];
+
+        sceneDiv.style.backgroundImage = `url('${s.image}')`;
+        updateOverlay(s);
+
+        // Fade back in
+        fadeDiv.style.opacity = "0";
+    }, 500); // 1 second = length of fade
+}
+loadScene(currentScene);
+
+// ===== CURSOR LOGIC =====
+document.addEventListener("mousemove", (e) => {
+    const x = e.clientX;
+    const y = e.clientY;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    const leftZone = width * 0.25;
+    const rightZone = width * 0.75;
+
+	// Back zone starts above overlay (overlay is ~150px tall)
+	const bottomZone = height * 0.60; 
+    // const bottomZone = height * 0.75; // back arrow only near bottom
+
+    const s = scenes[currentScene];
+    let cursor = "default";
+
+    if (y > bottomZone && s.back) {
+        cursor = downCursor;
+    }
+    else if (x < leftZone && s.left) {
+        cursor = leftCursor;
+    }
+    else if (x > rightZone && s.right) {
+        cursor = rightCursor;
+    }
+    else if (s.forward) {
+        cursor = upCursor;
+    }
+
+    document.body.style.cursor = cursor;
+});
+
+// ===== CLICK NAVIGATION =====
+sceneDiv.addEventListener("click", (e) => {
+    const x = e.clientX;
+    const y = e.clientY;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    const leftZone = width * 0.25;
+    const rightZone = width * 0.75;
+    
+    // Back zone shifted upward
+    const bottomZone = height * 0.60;
+
+    const s = scenes[currentScene];
+
+    if (y > bottomZone && s.back) {
+        loadScene(s.back);
+    }
+    else if (x < leftZone && s.left) {
+        loadScene(s.left);
+    }
+    else if (x > rightZone && s.right) {
+        loadScene(s.right);
+    }
+    else if (s.forward) {
+        loadScene(s.forward);
+    }
+});
+</script>
+
+</body>
+</html>
